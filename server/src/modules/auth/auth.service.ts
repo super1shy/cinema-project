@@ -6,10 +6,16 @@ import {
 import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
 import { AuthDto } from './dto/auth.dto';
+import { JwtService } from '@nestjs/jwt';
+import { User } from '../users/user.model';
+import { RefreshTokenDto } from './dto/refreshToken.dto';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   async register(userData: AuthDto) {
     const candidate = await this.usersService.findOneByEmail(userData.email);
@@ -25,12 +31,42 @@ export class AuthService {
       ...userData,
       password: hash,
     });
-    const { password, ...result } = newUser['dataValues'];
-    return result;
+
+    const tokens = await this.generateTokens(newUser.id);
+    // const { password, ...result } = newUser['dataValues'];
+    return {
+      user: this.returnUserFields(newUser),
+      ...tokens,
+    };
   }
 
   async login(userData: AuthDto) {
-    return this.validateUser(userData);
+    const user = await this.validateUser(userData);
+    const tokens = await this.generateTokens(user.id);
+    return {
+      user: this.returnUserFields(user),
+      ...tokens,
+    };
+  }
+
+  async getNewTokens({ refreshToken }: RefreshTokenDto) {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Please sign in!');
+    }
+
+    const result = await this.jwtService.verifyAsync(refreshToken);
+
+    if (!result) {
+      throw new UnauthorizedException('Invalid token or expired');
+    }
+
+    const user = await this.usersService.findOneById(result.id);
+    const tokens = await this.generateTokens(user.id);
+
+    return {
+      user: this.returnUserFields(user),
+      ...tokens,
+    };
   }
 
   private async validateUser(userData: AuthDto) {
@@ -45,12 +81,33 @@ export class AuthService {
       throw new UnauthorizedException('Invalid password');
     }
 
-    const { password, ...result } = user['dataValues'];
-    return result;
+    return user;
   }
 
   private async hashPassword(password) {
     const hash = await bcrypt.hash(password, 10);
     return hash;
+  }
+
+  private async generateTokens(userId) {
+    const data = { id: userId };
+
+    const refreshToken = await this.jwtService.signAsync(data, {
+      expiresIn: '15d',
+    });
+
+    const accessToken = await this.jwtService.signAsync(data, {
+      expiresIn: '1h',
+    });
+
+    return { refreshToken, accessToken };
+  }
+
+  returnUserFields(user: User) {
+    return {
+      id: user.id,
+      email: user.email,
+      isAdmin: user.isAdmin,
+    };
   }
 }
