@@ -3,3 +3,7 @@ export const DEVELOPMENT = 'development';
 export const TEST = 'test';
 export const PRODUCTION = 'production';
 export const USER_REPOSITORY = 'USER_REPOSITORY';
+export const GENRE_REPOSITORY = 'GENRE_REPOSITORY';
+export const MOVIE_REPOSITORY = 'MOVIE_REPOSITORY';
+export const FILES_REPOSITORY = 'FILES_REPOSITORY';
+export const FAVE_REPOSITORY = 'FAVE_REPOSITORY';
