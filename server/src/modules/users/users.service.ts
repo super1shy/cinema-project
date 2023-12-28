@@ -21,7 +21,10 @@ export class UsersService {
   }
 
   async findOneByEmail(email: string): Promise<User> {
-    const user = await this.userRepository.findOne({ where: { email } });
+    const user = await this.userRepository.findOne({
+      where: { email },
+      attributes: { exclude: ['password'] },
+    });
     if (!user) {
       new NotFoundException('User not found');
     }
@@ -29,7 +32,10 @@ export class UsersService {
   }
 
   async findOneById(id: number): Promise<User> {
-    const user = await this.userRepository.findByPk(id);
+    const user = await this.userRepository.findOne({
+      where: { id },
+      attributes: { exclude: ['password'] },
+    });
     if (!user) {
       new NotFoundException('User not found');
     }
@@ -38,19 +44,39 @@ export class UsersService {
   }
 
   async updateProfile(id: number, data: UpdateUserDto) {
-    const user = await this.findOneByEmail(data.email);
-    if (user && id !== user.id) {
-      throw new NotAcceptableException('This email already in use');
-    }
+    const user = await this.findOneById(id);
+    if (user) {
+      if (data.password) {
+        user.password = await bcrypt.hash(data.password, 10);
+      }
+      if (data.email) {
+        const isSameUser = await this.findOneByEmail(data.email);
+        if (isSameUser && id !== isSameUser.id) {
+          throw new NotAcceptableException('This email already in use');
+        }
 
-    if (data.password) {
-      data.password = await bcrypt.hash(data.password, 10);
-    }
-    // if (user.isAdmin || data.isAdmin === false) {
-    //   user.isAdmin = data.isAdmin;
-    // }
+        user.email = data.email;
+      }
+      if (data.isAdmin || data.isAdmin === false) user.isAdmin = data.isAdmin;
 
-    await this.userRepository.update(data, { where: { id } });
-    return;
+      await user.save();
+      return;
+    }
+  }
+
+  async getCount(): Promise<number> {
+    return await this.userRepository.count();
+  }
+
+  async getAll(): Promise<User[]> {
+    // const options = {};
+    return await this.userRepository.findAll({
+      attributes: { exclude: ['password'] },
+      order: [['createdAt', 'DESC']],
+    });
+  }
+
+  async delete(id: number) {
+    return await this.userRepository.destroy({ where: { id } });
   }
 }

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -37,5 +38,30 @@ export class UsersController {
   @Auth('admin')
   async updateUser(@Param('id') id: number, @Body() data: UpdateUserDto) {
     return this.usersService.updateProfile(id, data);
+  }
+
+  @Delete(':id')
+  @HttpCode(200)
+  @Auth('admin')
+  async deleteUser(@Param('id') id: number) {
+    return this.usersService.delete(id);
+  }
+
+  @Get('count')
+  @Auth('admin')
+  async getCountUsers() {
+    return this.usersService.getCount();
+  }
+
+  @Get()
+  @Auth('admin')
+  async getUsers() {
+    return this.usersService.getAll();
+  }
+
+  @Get(':id')
+  @Auth('admin')
+  async getUser(@Param('id') id: number) {
+    return this.usersService.findOneById(id);
   }
 }
