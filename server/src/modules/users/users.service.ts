@@ -1,7 +1,14 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  NotAcceptableException,
+  NotFoundException,
+} from '@nestjs/common';
+import * as bcrypt from 'bcryptjs';
 import { USER_REPOSITORY } from 'src/core/constants';
 import { User } from './user.model';
 import { AuthDto } from '../auth/dto/auth.dto';
+import { UpdateUserDto } from './dto/update.user.dto';
 
 @Injectable()
 export class UsersService {
@@ -26,6 +33,24 @@ export class UsersService {
     if (!user) {
       new NotFoundException('User not found');
     }
+
     return user;
+  }
+
+  async updateProfile(id: number, data: UpdateUserDto) {
+    const user = await this.findOneByEmail(data.email);
+    if (user && id !== user.id) {
+      throw new NotAcceptableException('This email already in use');
+    }
+
+    if (data.password) {
+      data.password = await bcrypt.hash(data.password, 10);
+    }
+    // if (user.isAdmin || data.isAdmin === false) {
+    //   user.isAdmin = data.isAdmin;
+    // }
+
+    await this.userRepository.update(data, { where: { id } });
+    return;
   }
 }
